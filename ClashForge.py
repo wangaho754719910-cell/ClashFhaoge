@@ -25,13 +25,11 @@ import os
 from datetime import datetime
 from asyncio import Semaphore
 import ssl
-
 ssl._create_default_https_context = ssl._create_unverified_context
 import warnings
-
 warnings.filterwarnings('ignore')
 from requests_html import HTMLSession
-import aiohttp
+
 
 TEST_URL = "http://www.gstatic.com/generate_204"
 # TEST_URL = "http://www.pinterest.com"
@@ -41,12 +39,12 @@ CLASH_API_SECRET = ""
 TIMEOUT = 3
 # 存储所有节点的速度测试结果
 SPEED_TEST = True
-SPEED_TEST_LIMIT = 30  # 只测试前30个节点的下行速度，每个节点测试5秒
+SPEED_TEST_LIMIT = 30 # 只测试前30个节点的下行速度，每个节点测试5秒
 results_speed = []
 MAX_CONCURRENT_TESTS = 100
-LIMIT = 10000  # 最多保留LIMIT个节点
+LIMIT = 10000 # 最多保留LIMIT个节点
 CONFIG_FILE = 'clash_config.yaml'
-INPUT = "input"  # 从文件中加载代理节点，支持yaml/yml、txt(每条代理链接占一行)
+INPUT = "input" # 从文件中加载代理节点，支持yaml/yml、txt(每条代理链接占一行)
 BAN = ["中国", "China", "CN", "电信", "移动", "联通"]
 headers = {
     'Accept-Charset': 'utf-8',
@@ -64,8 +62,7 @@ clash_config_template = {
     "log-level": "info",
     "external-controller": "127.0.0.1:9090",
     "geodata-mode": True,
-    'geox-url': {'geoip': 'https://slink.ltd/https://raw.githubusercontent.com/Loyalsoldier/geoip/release/geoip.dat',
-                 'mmdb': 'https://slink.ltd/https://raw.githubusercontent.com/Loyalsoldier/geoip/release/GeoLite2-Country.mmdb'},
+    'geox-url': {'geoip': 'https://slink.ltd/https://raw.githubusercontent.com/Loyalsoldier/geoip/release/geoip.dat', 'mmdb': 'https://slink.ltd/https://raw.githubusercontent.com/Loyalsoldier/geoip/release/GeoLite2-Country.mmdb'},
     "dns": {
         "enable": True,
         "ipv6": False,
@@ -1229,7 +1226,6 @@ clash_config_template = {
     ]
 }
 
-
 # 解析 Hysteria2 链接
 def parse_hysteria2_link(link):
     link = link[14:]
@@ -1255,7 +1251,6 @@ def parse_hysteria2_link(link):
         "client-fingerprint": "chrome"
     }
 
-
 # 解析 Shadowsocks 链接
 def parse_ss_link(link):
     link = link[5:]
@@ -1263,8 +1258,7 @@ def parse_ss_link(link):
         config_part, name = link.split('#')
     else:
         config_part, name = link, ""
-    decoded = base64.urlsafe_b64decode(config_part.split('@')[0] + '=' * (-len(config_part.split('@')[0]) % 4)).decode(
-        'utf-8')
+    decoded = base64.urlsafe_b64decode(config_part.split('@')[0] + '=' * (-len(config_part.split('@')[0]) % 4)).decode('utf-8')
     method_passwd = decoded.split(':')
     cipher, password = method_passwd if len(method_passwd) == 2 else (method_passwd[0], "")
     server_info = config_part.split('@')[1]
@@ -1279,7 +1273,6 @@ def parse_ss_link(link):
         "password": password,
         "udp": True
     }
-
 
 # 解析 Trojan 链接
 def parse_trojan_link(link):
@@ -1299,7 +1292,6 @@ def parse_trojan_link(link):
         "sni": urllib.parse.parse_qs(query).get("sni", [""])[0],
         "skip-cert-verify": urllib.parse.parse_qs(query).get("skip-cert-verify", ["false"])[0] == "true"
     }
-
 
 # 解析 VLESS 链接
 def parse_vless_link(link):
@@ -1329,7 +1321,6 @@ def parse_vless_link(link):
         } if urllib.parse.parse_qs(query).get("type", ["tcp"])[0] == "ws" else {}
     }
 
-
 # 解析 VMESS 链接
 def parse_vmess_link(link):
     link = link[8:]
@@ -1355,27 +1346,24 @@ def parse_vmess_link(link):
         } if vmess_info.get("net", "tcp") == "ws" else {}
     }
 
-
 # 解析ss订阅源
 def parse_ss_sub(link):
     new_links = []
     try:
-        # 发送请求并获取内容，设置超时和禁用SSL验证
-        response = requests.get(link, headers=headers, verify=False, allow_redirects=True, timeout=30)
+        # 发送请求并获取内容
+        response = requests.get(link, headers=headers, verify=False, allow_redirects=True)
         if response.status_code == 200:
             data = response.json()
-            new_links = [{"name": x['remarks'], "type": "ss", "server": x['server'], "port": x['server_port'],
-                          "cipher": x['method'], "password": x['password'], "udp": True} for x in data]
+            new_links = [{"name": x['remarks'], "type": "ss", "server": x['server'], "port": x['server_port'], "cipher": x['method'],"password": x['password'], "udp": True} for x in data]
             return new_links
     except requests.RequestException as e:
         print(f"请求错误: {e}")
         return new_links
 
-
 def parse_md_link(link):
     try:
-        # 发送请求并获取内容，设置超时和禁用SSL验证
-        response = requests.get(link, verify=False, timeout=30)
+        # 发送请求并获取内容
+        response = requests.get(link)
         response.raise_for_status()  # 检查请求是否成功
         content = response.text
         content = urllib.parse.unquote(content)
@@ -1390,20 +1378,17 @@ def parse_md_link(link):
         print(f"请求错误: {e}")
         return []
 
-
 # js渲染页面
 def js_render(url):
     timeout = 4
     if timeout > 15:
         timeout = 15
-    browser_args = ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-software-rasterizer',
-                    '--disable-setuid-sandbox']
+    browser_args = ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-software-rasterizer','--disable-setuid-sandbox']
     session = HTMLSession(browser_args=browser_args)
     r = session.get(f'{url}', headers=headers, timeout=timeout, verify=False)
     # 等待页面加载完成，Requests-HTML 会自动等待 JavaScript 执行完成
     r.html.render(timeout=timeout)
     return r
-
 
 # je_render返回的text没有缩进，通过正则表达式匹配proxies下的所有代理节点
 def match_nodes(text):
@@ -1420,106 +1405,7 @@ def match_nodes(text):
     yaml_data = {"proxies": proxies_list}
     return yaml_data
 
-
 # link非代理协议时(https)，请求url解析
-async def process_url_async(url, session):
-    isyaml = False
-    # 重试次数和超时设置
-    max_retries = 3
-    timeout = aiohttp.ClientTimeout(total=30)  # 30秒总超时
-
-    # 如果URL包含slink.ltd代理，准备一个无代理的备选URL
-    direct_url = None
-    if "slink.ltd/" in url:
-        direct_url = url.replace("https://slink.ltd/", "")
-
-    for retry in range(max_retries):
-        current_url = url
-        try:
-            # 发送GET请求，aiohttp不支持verify参数，需要使用SSL上下文
-            async with session.get(current_url, headers=headers, allow_redirects=True, timeout=timeout) as response:
-                # 确保响应状态码为200
-                if response.status == 200:
-                    content = await response.text()
-                    if 'proxies:' in content:
-                        # YAML格式
-                        yaml_data = yaml.safe_load(content)
-                        if 'proxies' in yaml_data:
-                            isyaml = True
-                            proxies = yaml_data['proxies'] if yaml_data['proxies'] else []
-                            return proxies, isyaml, url
-                    else:
-                        # 尝试Base64解码
-                        try:
-                            decoded_bytes = base64.b64decode(content)
-                            decoded_content = decoded_bytes.decode('utf-8')
-                            decoded_content = urllib.parse.unquote(decoded_content)
-                            return decoded_content.splitlines(), isyaml, url
-                        except Exception as e:
-                            try:
-                                # 注意：js_render可能需要单独处理，因为它不是基于aiohttp的异步函数
-                                # 这里为简单起见，仍然同步调用
-                                res = js_render(current_url)
-                                if 'external-controller' in res.html.text:
-                                    # YAML格式
-                                    try:
-                                        yaml_data = yaml.safe_load(res.html.text)
-                                    except Exception as e:
-                                        yaml_data = match_nodes(res.html.text)
-                                    finally:
-                                        if 'proxies' in yaml_data:
-                                            isyaml = True
-                                            return yaml_data['proxies'], isyaml, url
-
-                                else:
-                                    pattern = r'([A-Za-z0-9_+/\-]+={0,2})'
-                                    matches = re.findall(pattern, res.html.text)
-                                    stdout = matches[-1] if matches else []
-                                    decoded_bytes = base64.b64decode(stdout)
-                                    decoded_content = decoded_bytes.decode('utf-8')
-                                    return decoded_content.splitlines(), isyaml, url
-                            except Exception as e:
-                                # 如果不是Base64编码，直接按行处理
-                                return [], isyaml, url
-                else:
-                    print(f"请求失败 {current_url}, 状态码: {response.status}")
-                    if retry < max_retries - 1:
-                        print(f"重试中 ({retry + 1}/{max_retries})...")
-                        # 如果有备选URL且第一次尝试失败，切换到备选URL
-                        if direct_url and retry == 0:
-                            url = direct_url
-                            print(f"尝试直接访问GitHub: {direct_url}")
-                        await asyncio.sleep(1)  # 等待1秒后重试
-                    else:
-                        print(f"达到最大重试次数，跳过此链接")
-                        return [], isyaml, url
-        except asyncio.TimeoutError:
-            if retry < max_retries - 1:
-                print(f"请求超时 {current_url}，重试中 ({retry + 1}/{max_retries})...")
-                # 如果有备选URL且第一次尝试超时，切换到备选URL
-                if direct_url and retry == 0:
-                    url = direct_url
-                    print(f"尝试直接访问GitHub: {direct_url}")
-                await asyncio.sleep(1)  # 等待1秒后重试
-            else:
-                print(f"达到最大重试次数，跳过此链接: {url}")
-                return [], isyaml, url
-        except Exception as e:
-            if retry < max_retries - 1:
-                print(f"请求出错: {e}，重试中 ({retry + 1}/{max_retries})...")
-                # 如果有备选URL且第一次尝试出错，切换到备选URL
-                if direct_url and retry == 0:
-                    url = direct_url
-                    print(f"尝试直接访问GitHub: {direct_url}")
-                await asyncio.sleep(1)  # 等待1秒后重试
-            else:
-                print(f"请求出错: {e}，达到最大重试次数，跳过此链接")
-                return [], isyaml, url
-
-    return [], isyaml, url
-
-
-# 保留原来的process_url函数以便兼容性
 def process_url(url):
     isyaml = False
     try:
@@ -1534,14 +1420,14 @@ def process_url(url):
                 if 'proxies' in yaml_data:
                     isyaml = True
                     proxies = yaml_data['proxies'] if yaml_data['proxies'] else []
-                    return proxies, isyaml
+                    return proxies,isyaml
             else:
                 # 尝试Base64解码
                 try:
                     decoded_bytes = base64.b64decode(content)
                     decoded_content = decoded_bytes.decode('utf-8')
                     decoded_content = urllib.parse.unquote(decoded_content)
-                    return decoded_content.splitlines(), isyaml
+                    return decoded_content.splitlines(),isyaml
                 except Exception as e:
                     try:
                         res = js_render(url)
@@ -1565,14 +1451,13 @@ def process_url(url):
                             return decoded_content.splitlines(), isyaml
                     except Exception as e:
                         # 如果不是Base64编码，直接按行处理
-                        return [], isyaml
+                        return [],isyaml
         else:
             print(f"Failed to retrieve data from {url}, status code: {response.status_code}")
-            return [], isyaml
+            return [],isyaml
     except requests.RequestException as e:
         print(f"An error occurred while requesting {url}: {e}")
-        return [], isyaml
-
+        return [],isyaml
 
 # 解析不同的代理链接
 def parse_proxy_link(link):
@@ -1591,19 +1476,16 @@ def parse_proxy_link(link):
         # print(e)
         return None
 
-
 # 根据server和port共同约束去重
 def deduplicate_proxies(proxies_list):
     unique_proxies = []
     seen = set()
     for proxy in proxies_list:
-        key = (proxy['server'], proxy['port'], proxy['type'], proxy['password']) if proxy.get("password") else (
-        proxy['server'], proxy['port'], proxy['type'])
+        key = (proxy['server'], proxy['port'], proxy['type'], proxy['password']) if proxy.get("password") else (proxy['server'], proxy['port'], proxy['type'])
         if key not in seen:
             seen.add(key)
             unique_proxies.append(proxy)
     return unique_proxies
-
 
 # 出现节点name相同时，加上4位随机字符串
 def add_random_suffix(name, existing_names):
@@ -1615,7 +1497,6 @@ def add_random_suffix(name, existing_names):
         suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=4))
         new_name = f"{name}-{suffix}"
     return new_name
-
 
 # 从指定目录下的txt读取代理链接
 def read_txt_files(folder_path):
@@ -1632,7 +1513,6 @@ def read_txt_files(folder_path):
     if all_lines:
         print(f'加载【{folder_path}】目录下所有txt中节点')
     return all_lines
-
 
 # 从指定目录下的yaml/yml读取proxies
 def read_yaml_files(folder_path):
@@ -1655,20 +1535,17 @@ def read_yaml_files(folder_path):
         print(f'加载【{folder_path}】目录下yaml/yml中所有节点')
     return load_nodes
 
-
 # 进行type过滤
-def filter_by_types_alt(allowed_types, nodes):
+def filter_by_types_alt(allowed_types,nodes):
     # 进行过滤
     return [x for x in nodes if x.get('type') in allowed_types]
-
 
 # 合并links列表
 def merge_lists(*lists):
     return [item for item in chain.from_iterable(lists) if item != '']
 
 
-# 同步版本的handle_links函数
-def handle_links(new_links, resolve_name_conflicts):
+def handle_links(new_links,resolve_name_conflicts):
     try:
         for new_link in new_links:
             if new_link.startswith(("hysteria2://", "hy2://", "trojan://", "ss://", "vless://", "vmess://")):
@@ -1680,56 +1557,15 @@ def handle_links(new_links, resolve_name_conflicts):
     except Exception as e:
         pass
 
-
-async def handle_links_async(new_links, resolve_name_conflicts):
-    for new_link in new_links:
-        if new_link.startswith(("hysteria2://", "hy2://", "trojan://", "ss://", "vless://", "vmess://")):
-            node = parse_proxy_link(new_link)
-            if node:
-                resolve_name_conflicts(node)
-        else:
-            print(f"跳过无效或不支持的链接: {new_link}")
-
-
-async def process_single_link(link, resolve_name_conflicts, session):
-    if link.startswith(("hysteria2://", "hy2://", "trojan://", "ss://", "vless://", "vmess://")):
-        node = parse_proxy_link(link)
-        if node:
-            resolve_name_conflicts(node)
-    else:
-        if '|links' in link or '.md' in link:
-            link = link.replace('|links', '')
-            new_links = parse_md_link(link)
-            await handle_links_async(new_links, resolve_name_conflicts)
-        if '|ss' in link:
-            link = link.replace('|ss', '')
-            new_links = parse_ss_sub(link)
-            for node in new_links:
-                resolve_name_conflicts(node)
-        if '{' in link:
-            link = resolve_template_url(link)
-        print(f'当前正在处理link: {link}')
-        # 处理非特定协议的链接
-        try:
-            new_links, isyaml, _ = await process_url_async(link, session)
-        except Exception as e:
-            print(f"error: {e}")
-            return
-        if isyaml:
-            for node in new_links:
-                resolve_name_conflicts(node)
-        else:
-            await handle_links_async(new_links, resolve_name_conflicts)
-
-
 # 生成 Clash 配置文件
-async def generate_clash_config_async(links, load_nodes):
+def generate_clash_config(links,load_nodes):
     now = datetime.now()
     print(f"当前时间: {now}\n---")
 
     final_nodes = []
     existing_names = set()  # 存储所有节点名字以检查重复
     config = clash_config_template.copy()
+
 
     # 名称已存在的节点加随机后缀
     def resolve_name_conflicts(node):
@@ -1748,20 +1584,37 @@ async def generate_clash_config_async(links, load_nodes):
     for node in load_nodes:
         resolve_name_conflicts(node)
 
-    # 创建SSL上下文，禁用证书验证
-    ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
 
-    # 创建异步会话并发处理链接
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context, limit=100)) as session:
-        tasks = [process_single_link(link, resolve_name_conflicts, session) for link in links]
-        batch_size = 100  # 从10减少到5，降低并发请求数
-
-        # 分批处理链接以避免过多并发请求
-        for i in range(0, len(tasks), batch_size):
-            batch = tasks[i:i + batch_size]
-            await asyncio.gather(*batch)
+    for link in links:
+        if link.startswith(("hysteria2://", "hy2://","trojan://", "ss://", "vless://", "vmess://")):
+            node = parse_proxy_link(link)
+            if not node:
+                continue
+            resolve_name_conflicts(node)
+        else:
+            if '|links' in link or '.md' in link:
+                link = link.replace('|links', '')
+                new_links = parse_md_link(link)
+                handle_links(new_links,resolve_name_conflicts)
+            if '|ss' in link:
+                link = link.replace('|ss', '')
+                new_links = parse_ss_sub(link)
+                for node in new_links:
+                    resolve_name_conflicts(node)
+            if '{' in link:
+                link = resolve_template_url(link)
+            print(f'当前正在处理link: {link}')
+            # 处理非特定协议的链接
+            try:
+                new_links,isyaml = process_url(link)
+            except Exception as e:
+                print(f"error: {e}")
+                continue
+            if isyaml:
+                for node in new_links:
+                    resolve_name_conflicts(node)
+            else:
+                handle_links(new_links, resolve_name_conflicts)
 
     final_nodes = deduplicate_proxies(final_nodes)
 
@@ -1777,22 +1630,19 @@ async def generate_clash_config_async(links, load_nodes):
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             yaml.dump(config, f, allow_unicode=True, default_flow_style=False)
         with open(f'{CONFIG_FILE}.json', "w", encoding="utf-8") as f:
-            json.dump(config, f, ensure_ascii=False)
+            json.dump(config,f,ensure_ascii=False)
         print(f"已经生成Clash配置文件{CONFIG_FILE}|{CONFIG_FILE}.json")
     else:
         print('没有节点数据更新')
-
 
 # 判断不包含
 def not_contains(s):
     return not any(k in s for k in BAN)
 
-
 # 自定义 Clash API 异常
 class ClashAPIException(Exception):
     """自定义 Clash API 异常"""
     pass
-
 
 # 代理测试结果类
 class ProxyTestResult:
@@ -1808,12 +1658,10 @@ class ProxyTestResult:
     def is_valid(self) -> bool:
         return self.status == "ok"
 
-
 def ensure_executable(file_path):
     """ 确保文件具有可执行权限（仅适用于 Linux 和 macOS） """
     if platform.system().lower() in ['linux', 'darwin']:
         os.chmod(file_path, 0o755)  # 设置文件为可执行
-
 
 # 处理 Clash 配置错误，解析错误信息并更新配置文件
 def handle_clash_error(error_message, config_file_path):
@@ -1844,16 +1692,14 @@ def handle_clash_error(error_message, config_file_path):
 
         # 保存更新后的配置
         with open(config_file_path, 'w', encoding='utf-8') as file:
-            file.write(json.dumps(config, ensure_ascii=False))
+            file.write(json.dumps(config,ensure_ascii=False))
 
-        print(
-            f'配置异常：{error_message}修复配置异常，移除proxy[{problem_index}] {problem_proxy_name} 完毕，耗时{time.time() - start_time}s\n')
+        print(f'配置异常：{error_message}修复配置异常，移除proxy[{problem_index}] {problem_proxy_name} 完毕，耗时{time.time() - start_time}s\n')
         return True
 
     except Exception as e:
         print(f"处理配置文件时出错: {str(e)}")
         return False
-
 
 # 下载最新mihomo
 def download_and_extract_latest_release():
@@ -1927,7 +1773,6 @@ def download_and_extract_latest_release():
     else:
         print("No suitable release found for the current operating system.")
 
-
 def read_output(pipe, output_lines):
     while True:
         line = pipe.readline()
@@ -1990,6 +1835,12 @@ def start_clash():
                 return clash_process
 
 
+        if not_started:
+            clash_process.kill()
+            continue
+        return clash_process
+
+
 def is_clash_api_running():
     try:
         url = f"http://{CLASH_API_HOST}:{CLASH_API_PORTS[0]}/configs"
@@ -2000,7 +1851,6 @@ def is_clash_api_running():
     except requests.exceptions.RequestException:
         # 捕获所有请求异常，包括连接错误等
         return False
-
 
 # 切换到指定代理节点
 def switch_proxy(proxy_name='DIRECT'):
@@ -2025,7 +1875,6 @@ def switch_proxy(proxy_name='DIRECT'):
     except Exception as e:
         print(f"Error occurred: {e}")
         return {"status": "error", "message": str(e)}
-
 
 # 调用ClashAPI
 class ClashAPI:
@@ -2117,7 +1966,6 @@ class ClashAPI:
                 self._test_results_cache[proxy_name] = result
                 return result
 
-
 # 更新clash配置
 class ClashConfig:
     """Clash 配置管理类"""
@@ -2177,10 +2025,9 @@ class ClashConfig:
         LIMIT = LIMIT if len(self.config['proxies']) > LIMIT else len(self.config['proxies'])
         print(f"已从配置中移除 {len(invalid_proxies)} 个失效节点，最终保留{LIMIT}个延迟最小的节点")
 
-    def keep_proxies_by_limit(self, proxy_names):
+    def keep_proxies_by_limit(self,proxy_names):
         if "proxies" in self.config:
             self.config["proxies"] = [p for p in self.config["proxies"] if p["name"] in proxy_names]
-
     def update_group_proxies(self, group_name: str, results: List[ProxyTestResult]):
         """更新指定组的代理列表，仅保留有效节点并按延迟排序"""
         # 移除失效节点
@@ -2213,7 +2060,6 @@ class ClashConfig:
         except Exception as e:
             print(f"保存配置文件失败: {e}")
             sys.exit(1)
-
 
 # 打印测试结果摘要
 def print_test_summary(group_name: str, results: List[ProxyTestResult]):
@@ -2258,7 +2104,6 @@ async def test_group_proxies(clash_api: ClashAPI, proxies: List[str]) -> List[Pr
         print(f"\r进度: {done}/{total} ({done / total * 100:.1f}%)", end="", flush=True)
 
     return results
-
 
 async def proxy_clean():
     # 更新全局配置
@@ -2371,7 +2216,6 @@ async def proxy_clean():
             print(f"发生错误: {e}")
             raise
 
-
 # 获取当前时间的各个组成部分
 def parse_datetime_variables():
     now = datetime.now()
@@ -2384,7 +2228,6 @@ def parse_datetime_variables():
         'S': str(now.second).zfill(2)
     }
 
-
 # 移除URL中的代理前缀
 def strip_proxy_prefix(url):
     proxy_pattern = r'^https?://[^/]+/https://'
@@ -2395,11 +2238,9 @@ def strip_proxy_prefix(url):
         return real_url, proxy_prefix
     return url, None
 
-
 # 判断是否为GitHub raw URL
 def is_github_raw_url(url):
     return 'raw.githubusercontent.com' in url
-
 
 # 从URL中提取文件模式，返回占位符前后的部分
 def extract_file_pattern(url):
@@ -2409,13 +2250,12 @@ def extract_file_pattern(url):
         return match.group(1)  # 返回文件后缀，如 '.yaml', '.txt', '.json'
     return None
 
-
 # 从GitHub API获取匹配指定后缀的文件名
 def get_github_filename(github_url, file_suffix):
     match = re.match(r'https://raw\.githubusercontent\.com/([^/]+)/([^/]+)/[^/]+/[^/]+/([^/]+)', github_url)
     if not match:
         raise ValueError("无法从URL中提取owner和repo信息")
-    owner, repo, branch = match.groups()
+    owner, repo,branch = match.groups()
 
     # 构建API URL
     path_part = github_url.split(f'/refs/heads/{branch}/')[-1]
@@ -2434,7 +2274,6 @@ def get_github_filename(github_url, file_suffix):
         raise Exception(f"未找到匹配的{file_suffix}文件")
 
     return matching_files[0]
-
 
 # 解析URL模板，支持任意组合的日期时间变量和分隔符
 def parse_template(template_url, datetime_vars):
@@ -2470,7 +2309,6 @@ def parse_template(template_url, datetime_vars):
     # 使用正则表达式查找并替换所有模板块
     return re.sub(r'\{([^}]+)\}', replace_template, template_url)
 
-
 # 完整解析模板URL
 def resolve_template_url(template_url):
     # 先处理代理前缀
@@ -2497,8 +2335,7 @@ def resolve_template_url(template_url):
 
     return resolved_url
 
-
-def start_download_test(proxy_names, speed_limit=0.1):
+def start_download_test(proxy_names,speed_limit=0.1):
     """
     开始下载测试
 
@@ -2519,7 +2356,6 @@ def start_download_test(proxy_names, speed_limit=0.1):
 
     return sorted_proxy_names
 
-
 # 测试所有代理节点的下载速度，并排序结果
 def test_all_proxies(proxy_names):
     try:
@@ -2533,7 +2369,6 @@ def test_all_proxies(proxy_names):
         print("\r" + " " * 50 + "\r", end='')  # 清空行并返回行首
     except Exception as e:
         print(f"测试节点速度时出错: {e}")
-
 
 # 测试指定代理节点的下载速度（下载5秒后停止）
 def test_proxy_speed(proxy_name):
@@ -2555,8 +2390,7 @@ def test_proxy_speed(proxy_name):
     # 不断发起请求直到达到时间限制
     while time.time() - start_time < test_duration:
         try:
-            response = requests.get("https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb",
-                                    stream=True, proxies=proxies, headers={'Cache-Control': 'no-cache'},
+            response = requests.get("https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb", stream=True, proxies=proxies, headers={'Cache-Control': 'no-cache'},
                                     timeout=test_duration)
             for data in response.iter_content(chunk_size=524288):
                 total_length += len(data)
@@ -2572,17 +2406,15 @@ def test_proxy_speed(proxy_name):
     results_speed.append((proxy_name, f"{speed / 1024 / 1024:.2f}"))  # 记录速度测试结果
     return speed / 1024 / 1024  # 返回 MB/s
 
-
-def work(links, check=False, allowed_types=[], only_check=False):
+def work(links,check=False,allowed_types=[],only_check=False):
     try:
         if not only_check:
             load_nodes = read_yaml_files(folder_path=INPUT)
             if allowed_types:
-                load_nodes = filter_by_types_alt(allowed_types, nodes=load_nodes)
+                load_nodes = filter_by_types_alt(allowed_types,nodes=load_nodes)
             links = merge_lists(read_txt_files(folder_path=INPUT), links)
             if links or load_nodes:
-                # 使用异步方式处理链接
-                asyncio.run(generate_clash_config_async(links, load_nodes))
+                generate_clash_config(links,load_nodes)
 
         if check or only_check:
             clash_process = None
@@ -2609,65 +2441,7 @@ def work(links, check=False, allowed_types=[], only_check=False):
         sys.exit(1)
 
 
+
 if __name__ == '__main__':
-    links = [
-        "https://raw.githubusercontent.com/firefoxmmx2/v2rayshare_subcription/refs/heads/main/subscription/clash_sub.yaml",
-        "https://raw.githubusercontent.com/Roywaller/clash_subscription/refs/heads/main/clash_subscription.txt",
-        "https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc0.yaml",
-        "https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc1.yaml",
-        "https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc2.yaml",
-        "https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc3.yaml",
-        "https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc4.yaml",
-        "https://raw.githubusercontent.com/xiaoer8867785/jddy5/refs/heads/main/data/{Y_m_d}/{x}.yaml",
-        "https://raw.githubusercontent.com/mahdibland/ShadowsocksAggregator/master/LogInfo.txt|links",
-        "https://raw.githubusercontent.com/mahdibland/SSAggregator/master/sub/sub_merge_yaml.yml",
-        "https://raw.githubusercontent.com/mahdibland/ShadowsocksAggregator/master/Eternity.yml",
-        "https://raw.githubusercontent.com/52chatai/52chatai.github.io/refs/heads/main/{x}.yml",
-        "https://raw.githubusercontent.com/vxiaov/free_proxies/main/clash/clash.provider.yaml",
-        "https://raw.githubusercontent.com/wangyingbo/yb_clashgithub_sub/main/clash_sub.yml",
-        "https://raw.githubusercontent.com/ljlfct01/ljlfct01.github.io/refs/heads/main/节点",
-        "https://raw.githubusercontent.com/snakem982/proxypool/main/source/clash-meta.yaml",
-        "https://raw.githubusercontent.com/leetomlee123/freenode/refs/heads/main/README.md",
-        "https://raw.githubusercontent.com/chengaopan/AutoMergePublicNodes/master/list.yml",
-        "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/clash.yml",
-        "https://raw.githubusercontent.com/zhangkaiitugithub/passcro/main/speednodes.yaml",
-        "https://raw.githubusercontent.com/mgit0001/test_clash/refs/heads/main/heima.txt",
-        "https://raw.githubusercontent.com/mai19950/clashgithub_com/refs/heads/main/site",
-        "https://raw.githubusercontent.com/aiboboxx/v2rayfree/refs/heads/main/README.md",
-        "https://raw.githubusercontent.com/aiboboxx/clashfree/refs/heads/main/clash.yml",
-        "https://raw.githubusercontent.com/Pawdroid/Free-servers/refs/heads/main/sub",
-        "https://raw.githubusercontent.com/shahidbhutta/Clash/refs/heads/main/Router",
-        "https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.meta.yml",
-        "https://raw.githubusercontent.com/anaer/Sub/refs/heads/main/clash.yaml",
-        "https://raw.githubusercontent.com/skka3134/Free-servers/refs/heads/main/README.md|links",
-        "https://raw.githubusercontent.com/a2470982985/getNode/main/clash.yaml",
-        "https://raw.githubusercontent.com/free18/v2ray/refs/heads/main/c.yaml",
-        "https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.yml",
-        "https://raw.githubusercontent.com/mfbpn/tg_mfbpn_sub/main/trial.yaml",
-        "https://raw.githubusercontent.com/Ruk1ng001/freeSub/main/clash.yaml",
-        "https://raw.githubusercontent.com/ripaojiedian/freenode/main/clash",
-        "https://raw.githubusercontent.com/go4sharing/sub/main/sub.yaml",
-        "https://raw.githubusercontent.com/mfuu/v2ray/master/clash.yaml",
-        "https://www.freeclashnode.com/uploads/{Y}/{m}/0-{Ymd}.yaml",
-        "https://www.freeclashnode.com/uploads/{Y}/{m}/1-{Ymd}.yaml",
-        "https://sub.reajason.eu.org/clash.yaml",
-        "https://clash.llleman.com/clach.yml",
-        "https://proxypool.link/trojan/sub",
-        "https://proxypool.link/ss/sub|ss",
-        "https://proxypool.link/vmess/sub",
-        "https://mxlsub.me/newfull",
-        "https://igdux.top/5Hna",
-        "https://sub.fqzsnai.ggff.net/auto",
-        "https://mojie.app/api/v1/client/subscribe?token=0ba55eaf244c75b75656b8a0873386b5",
-        "https://mojie.app/api/v1/client/subscribe?token=2edea5326305ddc50f78d2946eb56c1f",
-        "https://onlysub.mjurl.com/api/v1/client/subscribe?token=55b7aa5eb76d4cc8bf393bf75e6050cd",
-        "https://mojie.app/api/v1/client/subscribe?token=fad75311d5bd744febffde287e0ad01c",
-        "https://onlysub.mjurl.com/api/v1/client/subscribe?token=f3429038c87f6ae368a606a0dfd292fe",
-        "https://onlysub.mjurl.com/api/v1/client/subscribe?token=aa912ec46b703e723dec90c48fd8ad84",
-        "https://onlysub.mjurl.com/api/v1/client/subscribe?token=6da0f6824b9732f7258eba77c45d367f",
-        "https://onlysub.mjurl.com/api/v1/client/subscribe?token=b4be56bbc7a62a22d711b0944cdeb96d",
-        "https://cdn.jsdelivr.net/gh/xiaoji235/airport-free/clash/naidounode.txt",
-        "https://raw.githubusercontent.com/xiaoji235/airport-free/refs/heads/main/clash/naidounode.txt"
-    ]
-    # work(links, check=True, only_check=False, allowed_types=["ss", "hysteria2", "hy2", "vless", "vmess", "trojan"])
-    work(links, check=True, only_check=True, allowed_types=["ss", "hysteria2", "hy2", "vless", "vmess", "trojan"])
+    links = []
+    work(links, check=True, only_check=False, allowed_types=["ss","hysteria2","hy2","vless","vmess","trojan"])
