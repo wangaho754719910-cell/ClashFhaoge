@@ -36,7 +36,6 @@ links = [
     "https://mojie.app/api/v1/client/subscribe?token=2edea5326305ddc50f78d2946eb56c1f",
     "https://mojie.app/api/v1/client/subscribe?token=fad75311d5bd744febffde287e0ad01c",
     "https://sub.mikeone.ggff.net/sub?token=6e300fe82f12874e439b76693aa179fb",
-    "https://hj.ovo2024.us.kg/bfff6596-0784-4c6f-bcb3-d474e400655c",
     "https://proxy-3ax.pages.dev/6de16aa5-1413-972b-8662-ed2a69bdf18c?clash",
     "https://cdn.jsdelivr.net/gh/xiaoji235/airport-free/clash/naidounode.txt",
     "https://cdn.jsdelivr.net/gh/yangxiaoge/tvbox_cust@master/clash/Clash2.yml",
