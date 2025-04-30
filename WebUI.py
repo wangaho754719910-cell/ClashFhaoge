@@ -9,7 +9,7 @@ import yaml
 import requests
 import json
 import glob
-
+import streamlit.components.v1 as components
 
 # 导入ClashForge模块
 from ClashForge import (
@@ -43,12 +43,27 @@ st.markdown("""
         text-align: center;
         margin-bottom: 1rem;
     }
+    .footer {
+        text-align: center;
+        margin-top: 2rem;
+        padding: 1rem;
+        font-size: 0.9rem;
+        color: #666;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # 完善配置文件清理函数
 def cleanup_config_files():
     """清理所有clash配置文件，包括带有多重后缀的文件"""
+    settings = load_settings()
+    settings["delays"] = []
+    settings["speed"] = {
+        "results": [],
+        "group_name": "",
+        "node_count": 0
+    }
+    save_settings(settings)
     # 清理所有clash_config开头的配置文件
     config_files = glob.glob("clash_config*")
     cleaned_count = 0
@@ -128,9 +143,6 @@ def load_settings():
         try:
             with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
-                # 确保 delays 字段存在
-                if "delays" not in settings:
-                    settings["delays"] = []
         except Exception as e:
             print(f"加载设置文件出错: {e}")
     return {"proxy_links": DEFAULT_LINKS, "delays": []}
@@ -705,8 +717,8 @@ with tab1:
                     height=400,
                     column_config={
                         "序号": st.column_config.NumberColumn("序号", width=60),
-                        "代理名称": st.column_config.TextColumn("代理名称", width=800),
-                        "Delay_ms": st.column_config.NumberColumn("延迟(ms)", format="%.2f ms", width=100)
+                        "代理名称": st.column_config.TextColumn("代理名称", width="large"),
+                        "Delay_ms": st.column_config.NumberColumn("延迟(ms)", format="%.2f ms")
                     },
                     hide_index=True
                 )
@@ -1056,4 +1068,29 @@ with tab3:
 
 # 页脚
 st.markdown("---")
-st.markdown("ClashForge WebUI | By [fish2018](https://github.com/fish2018) | [TG频道资源宇宙](https://t.me/s/tgsearchers)")
+st.markdown(
+    """
+    <div class="footer">
+        <a href="https://github.com/fish2018/ClashForge">ClashForge WebUI</a> | 
+        <a href="https://t.me/s/tgsearchers">TG频道资源宇宙</a> | 
+        <a href="https://proxy.252035.xyz/">订阅转换</a> | 
+        <a href="https://cf.252035.xyz/sub/clash_config.yaml">订阅地址</a>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# 不蒜子访问统计
+busuanzi_html = """
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+<div class="footer" style="text-align: center;">
+    <span id="busuanzi_container_site_pv">
+        本站总访问量 <span id="busuanzi_value_site_pv"></span> 次
+    </span>
+     | 
+    <span id="busuanzi_container_site_uv">
+        本站访客数 <span id="busuanzi_value_site_uv"></span> 人
+    </span>
+</div>
+"""
+components.html(busuanzi_html, height=100)
