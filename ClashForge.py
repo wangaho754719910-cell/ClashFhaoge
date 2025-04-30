@@ -29,17 +29,18 @@ ssl._create_default_https_context = ssl._create_unverified_context
 import warnings
 warnings.filterwarnings('ignore')
 from requests_html import HTMLSession
+import psutil
 
 
-TEST_URL = "http://www.gstatic.com/generate_204"
-# TEST_URL = "http://www.pinterest.com"
+# TEST_URL = "http://www.gstatic.com/generate_204"
+TEST_URL = "http://www.pinterest.com"
 CLASH_API_PORTS = [9090]
 CLASH_API_HOST = "127.0.0.1"
 CLASH_API_SECRET = ""
 TIMEOUT = 3
 # 存储所有节点的速度测试结果
-SPEED_TEST = True
-SPEED_TEST_LIMIT = 30 # 只测试前30个节点的下行速度，每个节点测试5秒
+SPEED_TEST = False
+SPEED_TEST_LIMIT = 5 # 只测试前30个节点的下行速度，每个节点测试5秒
 results_speed = []
 MAX_CONCURRENT_TESTS = 100
 LIMIT = 10000 # 最多保留LIMIT个节点
@@ -1415,6 +1416,8 @@ def process_url(url):
         if response.status_code == 200:
             content = response.content.decode('utf-8')
             if 'proxies:' in content:
+                if '</pre>' in content:
+                    content = content.replace('<pre style="word-wrap: break-word; white-space: pre-wrap;">','').replace('</pre>','')
                 # YAML格式
                 yaml_data = yaml.safe_load(content)
                 if 'proxies' in yaml_data:
@@ -1615,18 +1618,23 @@ def generate_clash_config(links,load_nodes):
                     resolve_name_conflicts(node)
             else:
                 handle_links(new_links, resolve_name_conflicts)
-
     final_nodes = deduplicate_proxies(final_nodes)
-
+    # 重置group中节点name
+    config["proxy-groups"][1]["proxies"] = []
     for node in final_nodes:
         name = str(node["name"])
         if not_contains(name):
             # 0节点选择 1 自动选择 2故障转移 3手动选择
             config["proxy-groups"][1]["proxies"].append(name)
-            config["proxy-groups"][2]["proxies"].append(name)
-            config["proxy-groups"][3]["proxies"].append(name)
+            proxies = list(set(config["proxy-groups"][1]["proxies"]))
+            config["proxy-groups"][1]["proxies"] = proxies
+            config["proxy-groups"][2]["proxies"] = proxies
+            config["proxy-groups"][3]["proxies"] = proxies
     config["proxies"] = final_nodes
+    
     if config["proxies"]:
+        global CONFIG_FILE
+        CONFIG_FILE = CONFIG_FILE[:-5] if CONFIG_FILE.endswith('.json') else CONFIG_FILE
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             yaml.dump(config, f, allow_unicode=True, default_flow_style=False)
         with open(f'{CONFIG_FILE}.json', "w", encoding="utf-8") as f:
@@ -1781,6 +1789,46 @@ def read_output(pipe, output_lines):
         else:
             break
 
+def kill_clash():
+    """
+    在 macOS、Linux 和 Windows 上强制杀掉 Clash 进程。
+    支持配置文件：clash_config.yaml 和 clash_config.yaml.json
+    """
+    # 根据操作系统定义 Clash 进程名
+    system = platform.system()
+    clash_process_names = {
+        "Windows": "clash.exe",
+        "Linux": "clash-linux",
+        "Darwin": "clash-darwin"  # macOS
+    }
+    config_files = ["clash_config.yaml", "clash_config.yaml.json"]
+    
+    # 检查是否支持当前操作系统
+    if system not in clash_process_names:
+        print("不支持的操作系统")
+        return
+    
+    # 获取当前系统的 Clash 进程名
+    process_name = clash_process_names[system]
+    
+    # 遍历所有进程，查找并终止 Clash 进程
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            # 如果进程名不匹配，跳过
+            if proc.info['name'] != process_name:
+                continue
+            
+            # 获取命令行参数并检查配置文件
+            cmdline = proc.info['cmdline']
+            if cmdline and len(cmdline) >= 3 and cmdline[1] == '-f' and cmdline[2] in config_files:
+                # 强制终止进程
+                proc.kill()
+                # print(f"Clash 进程 (PID: {proc.pid}) 已终止 ({system})")
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            # 忽略进程不存在、权限不足或僵尸进程的异常
+            pass
+    
+    # print(f"未找到 Clash 进程 ({system})")
 
 def start_clash():
     download_and_extract_latest_release()
@@ -2022,8 +2070,9 @@ class ClashConfig:
             if "proxies" in group:
                 group["proxies"] = [p for p in group["proxies"] if p not in invalid_proxies]
         global LIMIT
-        LIMIT = LIMIT if len(self.config['proxies']) > LIMIT else len(self.config['proxies'])
-        print(f"已从配置中移除 {len(invalid_proxies)} 个失效节点，最终保留{LIMIT}个延迟最小的节点")
+        left = LIMIT if len(self.config['proxies']) > LIMIT else len(self.config['proxies'])
+        # LIMIT = LIMIT if len(self.config['proxies']) > LIMIT else len(self.config['proxies'])
+        print(f"已从配置中移除 {len(invalid_proxies)} 个失效节点，最终保留{left}个延迟最小的节点")
 
     def keep_proxies_by_limit(self,proxy_names):
         if "proxies" in self.config:
@@ -2051,11 +2100,12 @@ class ClashConfig:
         try:
             # 保存新配置
             yaml_cfg = self.config_path.strip('.json') if self.config_path.endswith('.json') else self.config_path
-            if os.path.exists(f'{yaml_cfg}.json'):
-                os.remove(f'{yaml_cfg}.json')
             with open(yaml_cfg, 'w', encoding='utf-8') as f:
                 yaml.dump(self.config, f, allow_unicode=True, sort_keys=False)
-            print(f"新配置已保存到: {yaml_cfg}")
+            # print(f"新配置已保存到: {yaml_cfg}")
+            with open(f'{yaml_cfg}.json', "w", encoding="utf-8") as f:
+                json.dump(self.config,f,ensure_ascii=False)
+            # print(f'新配置已保存到: {yaml_cfg}.json')
 
         except Exception as e:
             print(f"保存配置文件失败: {e}")
@@ -2075,14 +2125,17 @@ def print_test_summary(group_name: str, results: List[ProxyTestResult]):
     print(f"可用节点数: {valid}")
     print(f"失效节点数: {invalid}")
 
+    delays = []
+
     if valid > 0:
         avg_delay = sum(r.delay for r in valid_results) / valid
         print(f"平均延迟: {avg_delay:.2f}ms")
-
         print("\n节点延迟统计:")
         sorted_results = sorted(valid_results, key=lambda x: x.delay)
         for i, result in enumerate(sorted_results[:LIMIT], 1):
+            delays.append({"name":result.name, "Delay_ms": round(result.delay, 2)})
             print(f"{i}. {result.name}: {result.delay:.2f}ms")
+    return delays
 
 
 # 测试一组代理节点
@@ -2107,6 +2160,7 @@ async def test_group_proxies(clash_api: ClashAPI, proxies: List[str]) -> List[Pr
 
 async def proxy_clean():
     # 更新全局配置
+    delays = []
     global MAX_CONCURRENT_TESTS, TIMEOUT, CLASH_API_SECRET, LIMIT, CONFIG_FILE
     CONFIG_FILE = f'{CONFIG_FILE}.json' if os.path.exists(f'{CONFIG_FILE}.json') else CONFIG_FILE
     print(f"===================节点批量检测基本信息======================")
@@ -2158,7 +2212,7 @@ async def proxy_clean():
                 results = await test_group_proxies(clash_api, proxies)
                 all_test_results.extend(results)
                 # 打印测试结果摘要
-                print_test_summary(group_name, results)
+                delays = print_test_summary(group_name, results)
 
             print('\n===================移除失效节点并按延迟排序======================\n')
             # 一次性移除所有失效节点并更新配置
@@ -2209,7 +2263,7 @@ async def proxy_clean():
             # 显示总耗时
             total_time = (datetime.now() - start_time).total_seconds()
             print(f"\n总耗时: {total_time:.2f} 秒")
-
+            return delays
         except ClashAPIException as e:
             print(f"Clash API 错误: {e}")
         except Exception as e:
@@ -2390,7 +2444,7 @@ def test_proxy_speed(proxy_name):
     # 不断发起请求直到达到时间限制
     while time.time() - start_time < test_duration:
         try:
-            response = requests.get("https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb", stream=True, proxies=proxies, headers={'Cache-Control': 'no-cache'},
+            response = requests.get("http://speedtest.tele2.net/100MB.zip", stream=True, proxies=proxies, headers={'Cache-Control': 'no-cache'},
                                     timeout=test_duration)
             for data in response.iter_content(chunk_size=524288):
                 total_length += len(data)
@@ -2443,5 +2497,65 @@ def work(links,check=False,allowed_types=[],only_check=False):
 
 
 if __name__ == '__main__':
-    links = []
+    links = [
+        "https://c7dabe95.proxy-978.pages.dev/767b6340-96dc-4aa0-8013-a8af7513d920?clash",
+        "https://cdn.jsdelivr.net/gh/xiaoji235/airport-free/clash/naidounode.txt",
+        "https://cdn.jsdelivr.net/gh/yangxiaoge/tvbox_cust@master/clash/Clash2.yml",
+        "https://gy.xiaozi.us.kg/sub?token=lzj666",
+        "https://igdux.top/5Hna",
+        "https://mxlsub.me/newfull",
+        "https://proxypool.link/ss/sub|ss",
+        "https://proxypool.link/trojan/sub",
+        "https://proxypool.link/vmess/sub",
+        "https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc0.yaml",
+        "https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc1.yaml",
+        "https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc2.yaml",
+        "https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc3.yaml",
+        "https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc4.yaml",
+        "https://raw.githubusercontent.com/Roywaller/clash_subscription/refs/heads/main/clash_subscription.txt",
+        "https://raw.githubusercontent.com/Ruk1ng001/freeSub/main/clash.yaml",
+        "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/main/all_configs.txt",
+        "https://raw.githubusercontent.com/a2470982985/getNode/main/clash.yaml",
+        "https://raw.githubusercontent.com/aiboboxx/clashfree/refs/heads/main/clash.yml",
+        "https://raw.githubusercontent.com/aiboboxx/v2rayfree/refs/heads/main/README.md",
+        "https://raw.githubusercontent.com/anaer/Sub/refs/heads/main/clash.yaml",
+        "https://raw.githubusercontent.com/chengaopan/AutoMergePublicNodes/master/list.yml",
+        "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/clash.yml",
+        "https://raw.githubusercontent.com/firefoxmmx2/v2rayshare_subcription/refs/heads/main/subscription/clash_sub.yaml",
+        "https://raw.githubusercontent.com/free18/v2ray/refs/heads/main/c.yaml",
+        "https://raw.githubusercontent.com/go4sharing/sub/main/sub.yaml",
+        "https://raw.githubusercontent.com/leetomlee123/freenode/refs/heads/main/README.md",
+        "https://raw.githubusercontent.com/ljlfct01/ljlfct01.github.io/refs/heads/main/节点",
+        "https://raw.githubusercontent.com/mahdibland/SSAggregator/master/sub/sub_merge_yaml.yml",
+        "https://raw.githubusercontent.com/mahdibland/ShadowsocksAggregator/master/Eternity.yml",
+        "https://raw.githubusercontent.com/mahdibland/ShadowsocksAggregator/master/LogInfo.txt",
+        "https://raw.githubusercontent.com/mai19950/clashgithub_com/refs/heads/main/site",
+        "https://raw.githubusercontent.com/mfbpn/tg_mfbpn_sub/main/trial.yaml",
+        "https://raw.githubusercontent.com/mfuu/v2ray/master/clash.yaml",
+        "https://raw.githubusercontent.com/mgit0001/test_clash/refs/heads/main/heima.txt",
+        "https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.meta.yml",
+        "https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.yml",
+        "https://raw.githubusercontent.com/Pawdroid/Free-servers/refs/heads/main/sub",
+        "https://raw.githubusercontent.com/ripaojiedian/freenode/main/clash",
+        "https://raw.githubusercontent.com/shahidbhutta/Clash/refs/heads/main/Router",
+        "https://raw.githubusercontent.com/skka3134/Free-servers/refs/heads/main/README.md",
+        "https://raw.githubusercontent.com/snakem982/proxypool/main/source/clash-meta.yaml",
+        "https://raw.githubusercontent.com/vxiaov/free_proxies/main/clash/clash.provider.yaml",
+        "https://raw.githubusercontent.com/wangyingbo/yb_clashgithub_sub/main/clash_sub.yml",
+        "https://raw.githubusercontent.com/xiaoer8867785/jddy5/refs/heads/main/data/{Y_m_d}/{x}.yaml",
+        "https://raw.githubusercontent.com/xiaoji235/airport-free/refs/heads/main/clash/naidounode.txt",
+        "https://raw.githubusercontent.com/zhangkaiitugithub/passcro/main/speednodes.yaml",
+        "https://raw.githubusercontent.com/aiboboxx/clashfree/refs/heads/main/clash.yml",
+        "https://raw.githubusercontent.com/ljlfct01/ljlfct01.github.io/refs/heads/main/节点",
+        "https://raw.githubusercontent.com/mahdibland/ShadowsocksAggregator/master/LogInfo.txt",
+        "https://raw.githubusercontent.com/wangyingbo/yb_clashgithub_sub/main/clash_sub.yml",
+        "https://SOS.CMLiussss.net/auto",
+        "https://sub.fqzsnai.ggff.net/auto",
+        "https://sub.mikeone.ggff.net/sub?token=6e300fe82f12874e439b76693aa179fb",
+        "https://sub.reajason.eu.org/clash.yaml",
+        "https://v1.mk/HuaplNe",
+        "https://www.freeclashnode.com/uploads/{Y}/{m}/0-{Ymd}.yaml",
+        "https://www.freeclashnode.com/uploads/{Y}/{m}/1-{Ymd}.yaml",
+        "https://zrf.zrf.me/zrf"
+    ]
     work(links, check=True, only_check=False, allowed_types=["ss","hysteria2","hy2","vless","vmess","trojan"])
