@@ -1,6 +1,6 @@
-## 订阅地址转换
+## 在线体验地址
 
-https://proxy.252035.xyz/  
+https://cf.252035.xyz/  
 
 ## 支持WebUI操作
 ![](https://raw.githubusercontent.com/fish2018/lib/refs/heads/main/%E6%95%99%E7%A8%8B/clashForge.gif)
