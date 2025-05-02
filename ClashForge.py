@@ -2483,7 +2483,7 @@ def upload_and_generate_urls(file_path=CONFIG_FILE):
                 singbox_url = f"{base_url}?{params}"
                 singbox_content = requests.get(singbox_url).text
                 upload_response = requests.post(api_url, files={
-                    'files[]': ('singbox_config.yaml', singbox_content.encode('utf-8'))})
+                    'files[]': ('singbox_config.json', singbox_content.encode('utf-8'))})
                 if upload_response.status_code == 200 and upload_response.json().get('success'):
                     result["singbox_url"] = upload_response.json()['files'][0]['url'].replace('pomf2.lain.la', 'f.252035.xyz')
     except Exception:
