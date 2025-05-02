@@ -16,7 +16,8 @@ from ClashForge import (
     generate_clash_config, merge_lists,
     filter_by_types_alt, read_txt_files, read_yaml_files,
     start_clash, proxy_clean, kill_clash,
-    ClashConfig, download_and_extract_latest_release
+    ClashConfig, download_and_extract_latest_release,
+    upload_and_generate_urls
 )
 
 def capture_output(func, *args, **kwargs):
@@ -50,8 +51,97 @@ st.markdown("""
         font-size: 0.9rem;
         color: #666;
     }
+    .scrolling-text-container {
+        background-color: #f0f8ff;
+        border-left: 4px solid #1E88E5;
+        padding: 10px 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        overflow: hidden;
+        position: relative;
+        width: 100%;
+    }
+    .marquee {
+        width: 100%;
+        overflow: hidden;
+        position: relative;
+    }
+    .marquee-content {
+        display: flex;
+        animation: marquee 20s linear infinite;
+        white-space: nowrap;
+    }
+    .marquee-item {
+        flex-shrink: 0;
+        padding: 0 20px;
+    }
+    @keyframes marquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-100%); }
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# 滚动提示信息函数
+def show_scrolling_tips():
+    # 计算距离下一次重置的剩余时间
+    current_time = time.time()
+    # 假设重置发生在每10分钟，即每小时的0, 10, 20, 30, 40, 50分钟
+    current_minute = int(time.strftime("%M", time.localtime(current_time)))
+    current_second = int(time.strftime("%S", time.localtime(current_time)))
+    
+    # 计算下一个10分钟整点
+    next_reset_minute = (current_minute // 10 + 1) * 10
+    if next_reset_minute == 60:
+        next_reset_minute = 0  # 下一个小时
+    
+    # 计算剩余分钟和秒数
+    if next_reset_minute == 0:
+        # 如果下一个重置点是下一个小时的0分，则剩余分钟是60-current_minute-1
+        remaining_minutes = 60 - current_minute - 1
+    else:
+        remaining_minutes = next_reset_minute - current_minute - 1
+    
+    remaining_seconds = 60 - current_second
+    
+    # 正确处理边界情况
+    if remaining_seconds == 60:
+        remaining_seconds = 0
+        remaining_minutes += 1
+    
+    # 确保时间不会出现负数
+    if remaining_minutes < 0:
+        remaining_minutes = 0
+        
+    if remaining_seconds < 0:
+        remaining_seconds = 0
+    
+    # 格式化剩余时间
+    remaining_time = f"{remaining_minutes:01d}分{remaining_seconds:02d}秒"
+    
+    tips = [
+        f"⏱️ 提示：本站仅供演示，将在 {remaining_time} 后重置，建议本地部署",
+        "🔍 提示：延迟低不一定速度快，建议同时测试延迟和速度"
+    ]
+    
+    # 使用新的轮播结构实现真正无缝的滚动
+    tip_html = ""
+    for tip in tips:
+        tip_html += f'<div class="marquee-item">{tip}</div>'
+    
+    st.markdown(f"""
+    <div class="scrolling-text-container">
+        <div class="marquee">
+            <div class="marquee-content">
+                {tip_html}
+                {tip_html}
+                {tip_html}
+                {tip_html}
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # 完善配置文件清理函数
 def cleanup_config_files():
@@ -63,6 +153,7 @@ def cleanup_config_files():
         "group_name": "",
         "node_count": 0
     }
+    settings["subscription_links"] = {}  # 清空订阅链接
     save_settings(settings)
     # 清理所有clash_config开头的配置文件
     config_files = glob.glob("clash_config*")
@@ -145,7 +236,7 @@ def load_settings():
                 return json.load(f)
         except Exception as e:
             print(f"加载设置文件出错: {e}")
-    return {"proxy_links": DEFAULT_LINKS, "delays": []}
+    return {"proxy_links": DEFAULT_LINKS, "delays": [], "subscription_links": {}}
 
 # 保存设置
 def save_settings(settings):
@@ -266,6 +357,9 @@ def test_proxy_speed(proxy_name, test_url="https://speed.cloudflare.com/__down?b
 
 # 标题
 st.markdown('<h1 class="main-header">ClashForge WebUI</h1>', unsafe_allow_html=True)
+
+# 显示滚动提示
+show_scrolling_tips()
 
 # 主要功能标签页
 tab1, tab2, tab3 = st.tabs(["获取节点", "测速", "配置编辑"])
@@ -913,6 +1007,133 @@ with tab2:
 with tab3:
     st.header("配置编辑")
     
+    # 获取订阅地址功能
+    st.subheader("生成订阅链接")
+    st.info("此功能将生成永久订阅链接，即使重置也不会失效")
+    
+    # 加载保存的订阅链接（如果有）
+    settings = load_settings()
+    subscription_links = settings.get("subscription_links", {})
+    
+    if not os.path.exists("clash_config.yaml"):
+        st.warning("未找到配置文件，请先在'获取节点'标签页生成配置文件")
+    else:
+        # 根据是否已有链接显示不同的按钮文本
+        button_text = "重新生成链接" if subscription_links and ("clash_url" in subscription_links or "singbox_url" in subscription_links) else "生成订阅链接"
+        
+        # 显示生成/重新生成按钮
+        if st.button(button_text, key="gen_subscription_links"):
+            with st.spinner("正在上传配置并生成链接..."):
+                try:
+                    # 调用upload_and_generate_urls方法获取订阅链接
+                    links = upload_and_generate_urls("clash_config.yaml")
+                    
+                    # 显示链接结果
+                    if links and isinstance(links, dict):
+                        # 保存链接到设置文件
+                        settings["subscription_links"] = links
+                        save_settings(settings)
+                        
+                        st.success("订阅链接生成成功")
+                        st.rerun()  # 重新加载页面以显示保存的链接
+                    else:
+                        st.error("未获取到有效的订阅链接，返回数据类型：" + str(type(links)))
+                        st.write("返回数据内容：", links)
+                except Exception as e:
+                    st.error(f"生成订阅链接失败: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
+        
+        # 如果已经有保存的订阅链接，显示链接和复制功能
+        if subscription_links and ("clash_url" in subscription_links or "singbox_url" in subscription_links):
+            # 显示Clash链接
+            if "clash_url" in subscription_links and subscription_links["clash_url"]:
+                st.subheader("Clash 订阅")
+                clash_link = subscription_links["clash_url"]
+                
+                # 创建一行用于显示链接和复制按钮
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.code(clash_link)
+                with col2:
+                    # 使用HTML组件实现可靠的复制功能，优化样式适应手机
+                    components.html(
+                        f"""
+                        <style>
+                            @media (max-width: 768px) {{
+                                .copy-button-container {{
+                                    width: 100% !important;
+                                }}
+                                .copy-button {{
+                                    width: 100% !important;
+                                }}
+                            }}
+                        </style>
+                        <div style="display:flex; justify-content:center; align-items:center; height:100%;" class="copy-button-container">
+                            <button 
+                                onclick="
+                                    navigator.clipboard.writeText('{clash_link}');
+                                    this.textContent = '已复制!';
+                                    setTimeout(() => this.textContent = '复制链接', 2000);
+                                    parent.postMessage({{type: 'streamlit:toast', data: {{icon: '✅', body: 'Clash链接已复制到剪贴板！'}} }}, '*');
+                                "
+                                style="background-color: #4CAF50; color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 14px; white-space: nowrap; display: block;"
+                                class="copy-button"
+                            >
+                                复制链接
+                            </button>
+                        </div>
+                        """,
+                        height=73,  # 匹配code块高度
+                    )
+            
+            # 显示SingBox链接
+            if "singbox_url" in subscription_links and subscription_links["singbox_url"]:
+                st.subheader("SingBox 订阅")
+                singbox_link = subscription_links["singbox_url"]
+                
+                # 创建一行用于显示链接和复制按钮
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.code(singbox_link)
+                with col2:
+                    # 使用HTML组件实现可靠的复制功能，优化样式适应手机
+                    components.html(
+                        f"""
+                        <style>
+                            @media (max-width: 768px) {{
+                                .copy-button-container {{
+                                    width: 100% !important;
+                                }}
+                                .copy-button {{
+                                    width: 100% !important;
+                                }}
+                            }}
+                        </style>
+                        <div style="display:flex; justify-content:center; align-items:center; height:100%;" class="copy-button-container">
+                            <button 
+                                onclick="
+                                    navigator.clipboard.writeText('{singbox_link}');
+                                    this.textContent = '已复制!';
+                                    setTimeout(() => this.textContent = '复制链接', 2000);
+                                    parent.postMessage({{type: 'streamlit:toast', data: {{icon: '✅', body: 'SingBox链接已复制到剪贴板！'}} }}, '*');
+                                "
+                                style="background-color: #4CAF50; color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 14px; white-space: nowrap; display: block;"
+                                class="copy-button"
+                            >
+                                复制链接
+                            </button>
+                        </div>
+                        """,
+                        height=73,  # 匹配code块高度
+                    )
+
+    st.divider()
+    
+    # 配置文件管理
+    st.subheader("配置文件管理")
+    st.info("此功能可以删除当前生成的所有配置文件")
+    
     # 检查是否存在配置文件
     config_files = []
     if os.path.exists("clash_config.yaml"):
@@ -923,51 +1144,62 @@ with tab3:
     if not config_files:
         st.warning("未找到配置文件，请先在'获取节点'标签页生成配置文件")
     else:
-        # 清理配置文件功能
-        with st.expander("配置文件管理", expanded=False):
-            st.info("此功能可以删除当前生成的所有配置文件")
-            col1, col2 = st.columns([1, 3])
-            with col1:
-                if st.button("清理配置文件", key="clean_config_files"):
-                    # 会话状态设置确认状态
-                    st.session_state.confirm_clean = True
-            
-            # 显示确认窗口
-            if "confirm_clean" in st.session_state and st.session_state.confirm_clean:
-                with col2:
-                    st.warning("您确定要删除所有配置文件吗？此操作不可恢复。")
-                    confirm_col1, confirm_col2 = st.columns(2)
-                    with confirm_col1:
-                        if st.button("确认删除", key="confirm_clean_btn"):
-                            deleted_files = []
-                            # 删除配置文件
-                            for config_file in config_files:
-                                try:
-                                    os.remove(config_file)
-                                    deleted_files.append(config_file)
-                                except Exception as e:
-                                    st.error(f"删除文件 {config_file} 失败: {str(e)}")
-                            
-                            # 清空测速结果
-                            if "speed_test_results" in st.session_state:
-                                st.session_state.speed_test_results = []
-                                st.session_state.speed_test_group = ""
-                                st.session_state.test_node_count = 0
-                                save_speed_test_results([], "", 0)
-                            
-                            # 显示成功消息
-                            if deleted_files:
-                                st.success(f"已成功删除以下配置文件: {', '.join(deleted_files)}")
-                                st.session_state.confirm_clean = False
-                                # 延迟一秒后刷新页面
-                                time.sleep(1)
-                                st.rerun()
-                    
-                    with confirm_col2:
-                        if st.button("取消", key="cancel_clean_btn"):
-                            st.session_state.confirm_clean = False
-                            st.rerun()
+        # 创建确认状态（如果不存在）
+        if "confirm_clean" not in st.session_state:
+            st.session_state.confirm_clean = False
         
+        # 仅当未处于确认状态时显示清理按钮
+        if not st.session_state.confirm_clean:
+            if st.button("清理配置文件", key="clean_config_files"):
+                # 设置确认状态
+                st.session_state.confirm_clean = True
+                # 立即重新运行以隐藏按钮
+                st.rerun()
+        
+        # 显示确认窗口
+        if st.session_state.confirm_clean:
+            st.warning("您确定要删除所有配置文件吗？此操作不可恢复。")
+            confirm_col1, confirm_col2 = st.columns(2)
+            with confirm_col1:
+                if st.button("确认删除", key="confirm_clean_btn"):
+                    deleted_files = []
+                    # 删除配置文件
+                    for config_file in config_files:
+                        try:
+                            os.remove(config_file)
+                            deleted_files.append(config_file)
+                        except Exception as e:
+                            st.error(f"删除文件 {config_file} 失败: {str(e)}")
+                    
+                    # 清空测速结果
+                    if "speed_test_results" in st.session_state:
+                        st.session_state.speed_test_results = []
+                        st.session_state.speed_test_group = ""
+                        st.session_state.test_node_count = 0
+                        save_speed_test_results([], "", 0)
+                    
+                    # 显示成功消息
+                    if deleted_files:
+                        st.success(f"已成功删除以下配置文件: {', '.join(deleted_files)}")
+                        st.session_state.confirm_clean = False
+                        # 延迟一秒后刷新页面
+                        time.sleep(1)
+                        st.rerun()
+            
+            with confirm_col2:
+                if st.button("取消", key="cancel_clean_btn"):
+                    st.session_state.confirm_clean = False
+                    st.rerun()
+    
+    st.divider()
+    
+    # 配置内容编辑
+    st.subheader("配置内容编辑")
+    st.info("此功能可以直接编辑配置文件的内容")
+    
+    if not config_files:
+        st.warning("未找到配置文件，请先在'获取节点'标签页生成配置文件")
+    else:
         # 选择要编辑的配置文件
         selected_config = st.selectbox(
             "选择配置文件", 
@@ -980,14 +1212,8 @@ with tab3:
             with open(selected_config, 'r', encoding='utf-8') as f:
                 config_content = f.read()
             
-            # 创建编辑区域
-            st.subheader("编辑配置")
-            
             # 根据文件类型提供更好的编辑体验
             file_type = "yaml" if selected_config.endswith(".yaml") else "json"
-            
-            # 显示编辑器提示
-            st.info(f"您正在编辑 {file_type.upper()} 格式的配置文件。请确保保持正确的缩进和格式。")
             
             edited_content = st.text_area(
                 "配置内容（直接编辑）", 
@@ -1014,53 +1240,100 @@ with tab3:
                 st.error(f"配置格式错误: {validation_error}")
                 st.warning("请修复格式错误后再保存")
             
-            # 保存和下载按钮
-            col1, col2 = st.columns(2)
+            # 使用HTML组件创建并排按钮，确保在移动设备上也保持一行
+            save_disabled = "disabled" if not is_valid else ""
             
-            with col1:
-                if st.button("保存修改", key="save_config_btn", disabled=not is_valid):
-                    try:
-                        # 额外的格式化处理
-                        if file_type == "yaml" and is_valid:
-                            # 将YAML重新格式化保存
-                            yaml_data = yaml.safe_load(edited_content)
-                            with open(selected_config, 'w', encoding='utf-8') as f:
-                                yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
-                        elif file_type == "json" and is_valid:
-                            # 将JSON重新格式化保存
-                            json_data = json.loads(edited_content)
-                            with open(selected_config, 'w', encoding='utf-8') as f:
-                                json.dump(json_data, f, ensure_ascii=False, indent=2)
-                        else:
-                            # 直接保存文本
-                            with open(selected_config, 'w', encoding='utf-8') as f:
-                                f.write(edited_content)
-                        # st.success(f"配置已保存到 {selected_config}")
-                    except Exception as e:
-                        st.error(f"保存配置失败: {str(e)}")
+            # 格式化后下载
+            download_data = edited_content
+            if is_valid:
+                try:
+                    if file_type == "yaml":
+                        yaml_data = yaml.safe_load(edited_content)
+                        download_data = yaml.dump(yaml_data, default_flow_style=False, sort_keys=False, allow_unicode=True)
+                    elif file_type == "json":
+                        json_data = json.loads(edited_content)
+                        download_data = json.dumps(json_data, ensure_ascii=False, indent=2)
+                except:
+                    # 如果格式化失败，使用原始内容
+                    pass
             
-            with col2:
-                # 格式化后下载
-                download_data = edited_content
-                if is_valid:
-                    try:
-                        if file_type == "yaml":
-                            yaml_data = yaml.safe_load(edited_content)
-                            download_data = yaml.dump(yaml_data, default_flow_style=False, sort_keys=False, allow_unicode=True)
-                        elif file_type == "json":
-                            json_data = json.loads(edited_content)
-                            download_data = json.dumps(json_data, ensure_ascii=False, indent=2)
-                    except:
-                        # 如果格式化失败，使用原始内容
-                        pass
+            # 使用固定容器创建按钮布局，确保始终保持一行显示
+            button_container = st.container()
+            with button_container:
+                # 使用CSS设置按钮容器为flex布局
+                st.markdown("""
+                <style>
+                    div[data-testid="column"]:nth-of-type(1) .stButton,
+                    div[data-testid="column"]:nth-of-type(2) .stButton {
+                        width: 100%;
+                        min-width: 0;
+                    }
+                    div[data-testid="column"]:nth-of-type(1) .stButton > button,
+                    div[data-testid="column"]:nth-of-type(2) .stButton > button {
+                        width: 100%;
+                        white-space: nowrap;
+                    }
+                    .button-flex-container div.row-widget.stHorizontal {
+                        flex-wrap: nowrap !important;
+                    }
+                </style>
+                <div class="button-flex-container">
+                """, unsafe_allow_html=True)
                 
-                st.download_button(
-                    label="下载配置文件",
-                    data=download_data,
-                    file_name=selected_config,
-                    mime="text/plain" if file_type == "yaml" else "application/json",
-                    key="download_config_btn"
-                )
+                col1, col2 = st.columns(2)
+                with col1:
+                    save_clicked = st.button(
+                        "保存修改",
+                        key="save_config_btn",
+                        disabled=not is_valid,
+                        help="保存修改到配置文件",
+                        type="primary",
+                        use_container_width=True
+                    )
+                    
+                    # 处理保存按钮点击
+                    if save_clicked:
+                        try:
+                            # 额外的格式化处理
+                            if file_type == "yaml" and is_valid:
+                                # 将YAML重新格式化保存
+                                yaml_data = yaml.safe_load(edited_content)
+                                with open(selected_config, 'w', encoding='utf-8') as f:
+                                    yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+                            elif file_type == "json" and is_valid:
+                                # 将JSON重新格式化保存
+                                json_data = json.loads(edited_content)
+                                with open(selected_config, 'w', encoding='utf-8') as f:
+                                    json.dump(json_data, f, ensure_ascii=False, indent=2)
+                            else:
+                                # 直接保存文本
+                                with open(selected_config, 'w', encoding='utf-8') as f:
+                                    f.write(edited_content)
+                            
+                            # 清空订阅链接，因为配置已经修改
+                            settings = load_settings()
+                            settings["subscription_links"] = {}
+                            save_settings(settings)
+                            
+                            st.success("配置已保存并且订阅链接已重置")
+                            st.rerun()  # 重新加载页面以反映变化
+                        except Exception as e:
+                            st.error(f"保存配置失败: {str(e)}")
+                
+                with col2:
+                    # 下载按钮
+                    st.download_button(
+                        label="下载配置文件",
+                        data=download_data,
+                        file_name=selected_config,
+                        mime="text/plain" if file_type == "yaml" else "application/json",
+                        key="download_config_btn",
+                        help="下载当前配置文件",
+                        type="secondary",
+                        use_container_width=True
+                    )
+                
+                st.markdown("</div>", unsafe_allow_html=True)
         
         except Exception as e:
             st.error(f"读取配置文件失败: {str(e)}")
@@ -1071,7 +1344,7 @@ st.markdown("---")
 st.markdown(
     """
     <div class="footer">
-        <a href="https://github.com/fish2018/ClashForge">ClashForge WebUI</a> | 
+        <a href="https://github.com/fish2018/ClashForge">ClashForge</a> | 
         <a href="https://t.me/s/tgsearchers">TG频道资源宇宙</a> | 
         <a href="https://proxy.252035.xyz/">订阅转换</a> | 
         <a href="https://cf.252035.xyz/sub/clash_config.yaml">订阅地址</a>
