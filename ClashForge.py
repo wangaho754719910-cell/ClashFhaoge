@@ -2460,6 +2460,37 @@ def test_proxy_speed(proxy_name):
     results_speed.append((proxy_name, f"{speed / 1024 / 1024:.2f}"))  # 记录速度测试结果
     return speed / 1024 / 1024  # 返回 MB/s
 
+def upload_and_generate_urls(file_path=CONFIG_FILE):
+    api_url = "https://f.252035.xyz/upload.php"
+    base_url = "https://url.v1.mk/sub"
+    result = {"clash_url": None, "singbox_url": None}
+
+    try:
+        # Upload Clash config
+        with open(file_path, 'rb') as file:
+            response = requests.post(api_url, files={'files[]': (os.path.basename(file_path), file)})
+            if response.status_code == 200 and response.json().get('success'):
+                clash_url = response.json()['files'][0]['url'].replace('pomf2.lain.la', 'f.252035.xyz')
+                result["clash_url"] = clash_url
+
+                # Generate and upload Singbox config
+                params = urllib.parse.urlencode({
+                    "target": "singbox", "url": clash_url, "insert": "false",
+                    "config": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Full_NoAuto.ini",
+                    "emoji": "true", "list": "false", "xudp": "false", "udp": "false",
+                    "tfo": "false", "expand": "true", "scv": "false", "fdn": "false"
+                })
+                singbox_url = f"{base_url}?{params}"
+                singbox_content = requests.get(singbox_url).text
+                upload_response = requests.post(api_url, files={
+                    'files[]': ('singbox_config.yaml', singbox_content.encode('utf-8'))})
+                if upload_response.status_code == 200 and upload_response.json().get('success'):
+                    result["singbox_url"] = upload_response.json()['files'][0]['url'].replace('pomf2.lain.la', 'f.252035.xyz')
+    except Exception:
+        pass
+
+    return result
+
 def work(links,check=False,allowed_types=[],only_check=False):
     try:
         if not only_check:
@@ -2558,4 +2589,5 @@ if __name__ == '__main__':
         "https://www.freeclashnode.com/uploads/{Y}/{m}/1-{Ymd}.yaml",
         "https://zrf.zrf.me/zrf"
     ]
+    links = ['https://c7dabe95.proxy-978.pages.dev/767b6340-96dc-4aa0-8013-a8af7513d920?clash']
     work(links, check=True, only_check=False, allowed_types=["ss","hysteria2","hy2","vless","vmess","trojan"])
