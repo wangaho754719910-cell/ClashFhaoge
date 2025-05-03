@@ -1014,16 +1014,16 @@ with tab3:
     # 添加文件存储安全性提示
     with st.expander("📌 关于订阅文件存储与安全性的说明", expanded=True):
         st.markdown("""
-        **文件存储说明**:
-        
-        - 您的订阅配置文件**不会**保存在我们的本地服务器上，可以放心使用
-        - 文件实际托管在 [pomf2.lain.la](https://pomf2.lain.la) 的临时文件服务上
-        - 我们通过 [f.252035.xyz](https://f.252035.xyz) 提供反向代理和 Cloudflare CDN 优化的访问链接
-        
-        **举例说明**:  
-        如果生成的链接是 `https://f.252035.xyz/f/hduu4td4.yaml`，您也可以直接使用原始链接 `https://pomf2.lain.la/f/hduu4td4.yaml` 访问相同的文件。
-        
-        我们采用这种方式以提供更快、更稳定的访问体验，同时确保您的配置文件不会在本地服务器留存。
+            **文件存储说明**:
+            - 默认同时生成`clash`和`singbox`订阅链接
+            - 您的订阅配置文件**不会**保存在服务器上，可以放心使用
+            - 文件实际托管在 [pomf2.lain.la](https://pomf2.lain.la) (需翻)的文件服务上
+            - 通过 [f.252035.xyz](https://f.252035.xyz) 提供反向代理和 Cloudflare CDN 优化
+                      
+            **举例说明**:  
+            如果生成的链接是 `https://f.252035.xyz/f/hduu4td4.yaml`，您也可以直接使用原始链接 `https://pomf2.lain.la/f/hduu4td4.yaml` 访问相同的文件。
+                    
+            采用这种方式以提供更快、更稳定的访问体验，同时确保您的配置文件不会在服务器留存。
         """)
     
     # 加载保存的订阅链接（如果有）
