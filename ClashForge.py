@@ -2480,7 +2480,8 @@ def upload_and_generate_urls(file_path=CONFIG_FILE):
                 })
                 headers = {'Accept': 'application/json'}
                 singbox_url = f"{base_url}?{params}"
-                singbox_content = requests.get(singbox_url, headers=headers).text
+                singbox_content = requests.get(singbox_url, headers=headers).json()
+                singbox_content = json.dumps(singbox_content, ensure_ascii=False)
                 upload_response = requests.post(api_url, files={
                     'files[]': ('singbox_config.json', singbox_content.encode('utf-8'), 'application/json')
                 })
