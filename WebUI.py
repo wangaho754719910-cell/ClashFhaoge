@@ -594,7 +594,7 @@ with tab1:
     )
 
     # 添加更详细的格式说明
-    with st.expander("链接格式说明", expanded=False):
+    with st.expander("📌 链接格式说明", expanded=False):
         st.markdown("""
         ### 支持的链接格式
         
@@ -1009,7 +1009,22 @@ with tab3:
     
     # 获取订阅地址功能
     st.subheader("生成订阅链接")
-    st.info("此功能将生成永久订阅链接，即使重置也不会失效")
+    st.info("此功能将当前配置上传到服务器并返回可用的订阅链接")
+    
+    # 添加文件存储安全性提示
+    with st.expander("📌 关于订阅文件存储与安全性的说明", expanded=True):
+        st.markdown("""
+        **文件存储说明**:
+        
+        - 您的订阅配置文件**不会**保存在我们的本地服务器上，可以放心使用
+        - 文件实际托管在 [pomf2.lain.la](https://pomf2.lain.la) 的临时文件服务上
+        - 我们通过 [f.252035.xyz](https://f.252035.xyz) 提供反向代理和 Cloudflare CDN 优化的访问链接
+        
+        **举例说明**:  
+        如果生成的链接是 `https://f.252035.xyz/f/hduu4td4.yaml`，您也可以直接使用原始链接 `https://pomf2.lain.la/f/hduu4td4.yaml` 访问相同的文件。
+        
+        我们采用这种方式以提供更快、更稳定的访问体验，同时确保您的配置文件不会在本地服务器留存。
+        """)
     
     # 加载保存的订阅链接（如果有）
     settings = load_settings()
