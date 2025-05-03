@@ -2466,24 +2466,24 @@ def upload_and_generate_urls(file_path=CONFIG_FILE):
     result = {"clash_url": None, "singbox_url": None}
 
     try:
-        # Upload Clash config
         with open(file_path, 'rb') as file:
             response = requests.post(api_url, files={'files[]': (os.path.basename(file_path), file)})
             if response.status_code == 200 and response.json().get('success'):
                 clash_url = response.json()['files'][0]['url'].replace('pomf2.lain.la', 'f.252035.xyz')
                 result["clash_url"] = clash_url
 
-                # Generate and upload Singbox config
                 params = urllib.parse.urlencode({
                     "target": "singbox", "url": clash_url, "insert": "false",
                     "config": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Full_NoAuto.ini",
                     "emoji": "true", "list": "false", "xudp": "false", "udp": "false",
                     "tfo": "false", "expand": "true", "scv": "false", "fdn": "false"
                 })
+                headers = {'Accept': 'application/json'}
                 singbox_url = f"{base_url}?{params}"
-                singbox_content = requests.get(singbox_url).text
+                singbox_content = requests.get(singbox_url, headers=headers).text
                 upload_response = requests.post(api_url, files={
-                    'files[]': ('singbox_config.json', singbox_content.encode('utf-8'))})
+                    'files[]': ('singbox_config.json', singbox_content.encode('utf-8'), 'application/json')
+                })
                 if upload_response.status_code == 200 and upload_response.json().get('success'):
                     result["singbox_url"] = upload_response.json()['files'][0]['url'].replace('pomf2.lain.la', 'f.252035.xyz')
     except Exception:
