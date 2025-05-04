@@ -23,7 +23,7 @@ https://cf.252035.xyz/
 - 生成临时json配置，极大的提高了修复配置异常节点的效率，使用json格式处理几十万行的数据也非常快
 - 支持测试节点下载速度，按下载速度排序，默认只测试前30个节点(每个节点测试5秒)
 - 新增`WebUI.py`，运行方式`python3 -m streamlit run WebUI.py`，打开浏览器访问 `http://localhost:8501`
-- 新增生成永久订阅链接功能，订阅配置文件并不会保留在服务器本地，可以放心使用。文件存储使用的是https://pomf2.lain.la ，我在服务器做了反向代理和Cloudflare CDN优化，比如`https://f.252035.xyz/f/hduu4td4.yaml`你可以直接使用原始链接`https://pomf2.lain.la/f/hduu4td4.yaml`访问
+- 新增生成永久订阅链接功能，订阅配置文件并不会保留在服务器本地，可以放心使用。文件存储使用的是https://catbox.moe/
 
 ## 相关参考：
 - https://wiki.metacubex.one/config/  
