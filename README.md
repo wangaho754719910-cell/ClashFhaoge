@@ -24,6 +24,7 @@ https://cf.252035.xyz/
 - 支持测试节点下载速度，按下载速度排序，默认只测试前30个节点(每个节点测试5秒)
 - 新增`WebUI.py`，运行方式`python3 -m streamlit run WebUI.py`，打开浏览器访问 `http://localhost:8501`
 - 新增生成永久订阅链接功能，订阅配置文件并不会保留在服务器本地，可以放心使用。文件存储使用的是https://catbox.moe/
+- 新增容器支持，启动方式`docker run -d --rm --name clashforge -p 8501:8501 2011820123/clashforge:latest`
 
 ## 相关参考：
 - https://wiki.metacubex.one/config/  
