@@ -2461,34 +2461,37 @@ def test_proxy_speed(proxy_name):
     return speed / 1024 / 1024  # 返回 MB/s
 
 def upload_and_generate_urls(file_path=CONFIG_FILE):
-    api_url = "https://f.252035.xyz/upload.php"
-    base_url = "https://url.v1.mk/sub"
+    api_url = "https://f2.252035.xyz/user/api.php"
     result = {"clash_url": None, "singbox_url": None}
 
     try:
-        with open(file_path, 'rb') as file:
-            response = requests.post(api_url, files={'files[]': (os.path.basename(file_path), file)})
-            if response.status_code == 200 and response.json().get('success'):
-                clash_url = response.json()['files'][0]['url'].replace('pomf2.lain.la', 'f.252035.xyz')
-                result["clash_url"] = clash_url
+        if not os.path.isfile(file_path):
+            print(f"错误：文件 {file_path} 不存在。")
+            return result
+        if os.path.getsize(file_path) > 209715200:
+            print("错误：文件大小超过 200MB 限制。")
+            return result
 
-                params = urllib.parse.urlencode({
-                    "target": "singbox", "url": clash_url, "insert": "false",
-                    "config": "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Full_NoAuto.ini",
-                    "emoji": "true", "list": "false", "xudp": "false", "udp": "false",
-                    "tfo": "false", "expand": "true", "scv": "false", "fdn": "false"
-                })
-                headers = {'Accept': 'application/json'}
-                singbox_url = f"{base_url}?{params}"
-                singbox_content = requests.get(singbox_url, headers=headers).json()
-                singbox_content = json.dumps(singbox_content, ensure_ascii=False)
-                upload_response = requests.post(api_url, files={
-                    'files[]': ('singbox_config.json', singbox_content.encode('utf-8'), 'application/json')
-                })
-                if upload_response.status_code == 200 and upload_response.json().get('success'):
-                    result["singbox_url"] = upload_response.json()['files'][0]['url'].replace('pomf2.lain.la', 'f.252035.xyz')
-    except Exception:
-        pass
+        # Upload Clash config
+        with open(file_path, 'rb') as file:
+            response = requests.post(api_url, data={"reqtype": "fileupload"}, files={"fileToUpload": file})
+            if response.status_code == 200:
+                clash_url = response.text.strip()
+                result["clash_url"] = clash_url
+                print(f"Clash 配置文件上传成功！直链：{clash_url}")
+ 
+                sb_full_url = f'https://url.v1.mk/sub?target=singbox&url={clash_url}&insert=false&config=https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Full_NoAuto.ini&emoji=true&list=false&xudp=false&udp=false&tfo=false&expand=true&scv=false&fdn=false'
+                encoded_url = base64.urlsafe_b64encode(sb_full_url.encode()).decode()
+                response = requests.post("https://v1.mk/short", json={"longUrl": encoded_url})
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("Code") == 1:
+                        singbox_url = data["ShortUrl"]
+                        result["singbox_url"] = singbox_url
+                        print(f"singbox 配置文件上传成功！直链：{singbox_url}")
+
+    except Exception as e:
+        print(f"发生错误：{e}")
 
     return result
 
