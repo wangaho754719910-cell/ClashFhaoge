@@ -279,29 +279,6 @@ def custom_generate_clash_config(links, nodes=None):
     
     return result
 
-# def switch_proxy(proxy_name):
-#     """切换到指定代理"""
-#     try:
-#         # 获取当前选择器状态
-#         url = "http://127.0.0.1:9090/proxies/GLOBAL"
-#         resp = requests.get(url)
-#         if resp.status_code != 200:
-#             print(f"获取当前代理状态失败: {resp.status_code}")
-#             return False
-        
-#         # 切换代理
-#         url = "http://127.0.0.1:9090/proxies/GLOBAL"
-#         data = {"name": proxy_name}
-#         resp = requests.put(url, json=data)
-#         if resp.status_code != 204:
-#             print(f"切换代理失败: {resp.status_code}")
-#             return False
-        
-#         print(f"已切换到代理: {proxy_name}")
-#         return True
-#     except Exception as e:
-#         print(f"切换代理出错: {str(e)}")
-#         return False
 
 def test_proxy_speed(proxy_name, test_url="https://speed.cloudflare.com/__down?bytes=100000000", timeout=5):
     """测试代理下载速度"""
@@ -1375,3 +1352,4 @@ busuanzi_html = """
 </div>
 """
 components.html(busuanzi_html, height=100)
+
