@@ -13,7 +13,7 @@ import streamlit.components.v1 as components
 
 # 导入ClashForge模块
 from ClashForge import (
-    generate_clash_config, merge_lists,
+    generate_clash_config, merge_lists, switch_proxy,
     filter_by_types_alt, read_txt_files, read_yaml_files,
     start_clash, proxy_clean, kill_clash,
     ClashConfig, download_and_extract_latest_release,
@@ -121,10 +121,10 @@ def show_scrolling_tips():
     remaining_time = f"{remaining_minutes:01d}分{remaining_seconds:02d}秒"
     
     tips = [
-        f"⏱️ 提示：本站仅供演示，将在 {remaining_time} 后重置，建议本地部署",
-        "🔍 提示：延迟低不一定速度快，建议同时测试延迟和速度"
+        f"⏱️ 提示：本站仅供演示，每10分钟重置一次，下次重置将在 {remaining_time} 后，建议本地部署",
+        "🔍 提示：延迟低不一定速度快，建议同时测试延迟和速，本站部署在香港VPS，带宽20Mbps，测试结果仅供参考 "
     ]
-    
+
     # 使用新的轮播结构实现真正无缝的滚动
     tip_html = ""
     for tip in tips:
@@ -222,10 +222,7 @@ SETTINGS_FILE = "settings.json"
 
 # 默认链接列表
 DEFAULT_LINKS = [
-    "https://www.freeclashnode.com/uploads/{Y}/{m}/1-{Ymd}.yaml",
-    "https://proxypool.link/ss/sub|ss",
-    "https://raw.githubusercontent.com/aiboboxx/v2rayfree/refs/heads/main/README.md",
-    "https://raw.githubusercontent.com/skka3134/Free-servers/refs/heads/main/README.md|links"
+	"https://proxypool.link/vmess/sub"
 ]
 
 # 加载设置
@@ -282,29 +279,29 @@ def custom_generate_clash_config(links, nodes=None):
     
     return result
 
-def switch_proxy(proxy_name):
-    """切换到指定代理"""
-    try:
-        # 获取当前选择器状态
-        url = "http://127.0.0.1:9090/proxies/GLOBAL"
-        resp = requests.get(url)
-        if resp.status_code != 200:
-            print(f"获取当前代理状态失败: {resp.status_code}")
-            return False
+# def switch_proxy(proxy_name):
+#     """切换到指定代理"""
+#     try:
+#         # 获取当前选择器状态
+#         url = "http://127.0.0.1:9090/proxies/GLOBAL"
+#         resp = requests.get(url)
+#         if resp.status_code != 200:
+#             print(f"获取当前代理状态失败: {resp.status_code}")
+#             return False
         
-        # 切换代理
-        url = "http://127.0.0.1:9090/proxies/GLOBAL"
-        data = {"name": proxy_name}
-        resp = requests.put(url, json=data)
-        if resp.status_code != 204:
-            print(f"切换代理失败: {resp.status_code}")
-            return False
+#         # 切换代理
+#         url = "http://127.0.0.1:9090/proxies/GLOBAL"
+#         data = {"name": proxy_name}
+#         resp = requests.put(url, json=data)
+#         if resp.status_code != 204:
+#             print(f"切换代理失败: {resp.status_code}")
+#             return False
         
-        print(f"已切换到代理: {proxy_name}")
-        return True
-    except Exception as e:
-        print(f"切换代理出错: {str(e)}")
-        return False
+#         print(f"已切换到代理: {proxy_name}")
+#         return True
+#     except Exception as e:
+#         print(f"切换代理出错: {str(e)}")
+#         return False
 
 def test_proxy_speed(proxy_name, test_url="https://speed.cloudflare.com/__down?bytes=100000000", timeout=5):
     """测试代理下载速度"""
@@ -594,7 +591,7 @@ with tab1:
     )
 
     # 添加更详细的格式说明
-    with st.expander("📌 链接格式说明", expanded=False):
+    with st.expander("📌  链接格式说明", expanded=False):
         st.markdown("""
         ### 支持的链接格式
         
@@ -761,6 +758,7 @@ with tab1:
                         progress_text.text("测试节点延迟中...")
                         progress_bar.progress(0.7)
                         try:
+                            switch_proxy('DIRECT')
                             st.session_state.delays = capture_output(asyncio.run, proxy_clean())
                             settings["delays"] = st.session_state.delays
                             save_settings(settings)
@@ -769,6 +767,8 @@ with tab1:
                             st.session_state.delays = []
                             settings["delays"] = []
                             save_settings(settings)
+                        finally:
+                            switch_proxy('DIRECT')
                     # 完成
                     progress_bar.progress(1.0)
                     progress_text.text("完成！")
@@ -1009,17 +1009,16 @@ with tab3:
     
     # 获取订阅地址功能
     st.subheader("生成订阅链接")
-    st.info("此功能将当前配置上传到服务器并返回可用的订阅链接")
+    st.info("此功能将生成永久订阅链接，即使重置也不会失效")
     
     # 添加文件存储安全性提示
-    with st.expander("📌 关于订阅文件存储与安全性的说明", expanded=True):
+    with st.expander("📌  关于订阅文件存储与安全性的说明", expanded=True):
         st.markdown("""
             **文件存储说明**:
             - 默认同时生成`clash`和`singbox`订阅链接
             - 您的订阅配置文件**不会**保存在服务器上，可以放心使用
-            - 文件实际托管在 [https://catbox.moe/](https://catbox.moe/) (需翻)的文件服务上
+            - 文件实际托管在 [catbox.moe](https://catbox.moe) (需翻)的文件服务上
         """)
-    
     # 加载保存的订阅链接（如果有）
     settings = load_settings()
     subscription_links = settings.get("subscription_links", {})
@@ -1032,6 +1031,7 @@ with tab3:
         
         # 显示生成/重新生成按钮
         if st.button(button_text, key="gen_subscription_links"):
+            _stop_clash(rerun=False)
             with st.spinner("正在上传配置并生成链接..."):
                 try:
                     # 调用upload_and_generate_urls方法获取订阅链接
@@ -1355,8 +1355,7 @@ st.markdown(
     <div class="footer">
         <a href="https://github.com/fish2018/ClashForge">ClashForge</a> | 
         <a href="https://t.me/s/tgsearchers">TG频道资源宇宙</a> | 
-        <a href="https://proxy.252035.xyz/">订阅转换</a> | 
-        <a href="https://cf.252035.xyz/sub/clash_config.yaml">订阅地址</a>
+        <a href="https://proxy.252035.xyz/">订阅转换</a>  
     </div>
     """,
     unsafe_allow_html=True
