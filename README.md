@@ -3,7 +3,7 @@ https://cf.252035.xyz/
 
 ## 支持WebUI操作
 ![](https://raw.githubusercontent.com/fish2018/lib/refs/heads/main/%E6%95%99%E7%A8%8B/clashForge.gif)  
-
+https://github-production-user-asset-6210df.s3.amazonaws.com/34814105/442004093-a1a377a2-e93e-461d-9915-7f7f4dd6ff36.mp4
 
 ## 功能
 - 将`hysteria2://|hy2://`、`trojan://`、`ss://`、`vless://`、`vmess://`协议链接转换为clash可用的代理节点配置
