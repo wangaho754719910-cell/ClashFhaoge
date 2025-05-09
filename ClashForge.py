@@ -2479,7 +2479,6 @@ def upload_and_generate_urls(file_path=CONFIG_FILE):
         # Upload Clash config
         with open(file_path, 'rb') as file:
             response = requests.post(api_url, data={"reqtype": "fileupload"}, files={"fileToUpload": file}, timeout=15, verify=False)
-            print(11111,response.text)
             if response.status_code == 200:
                 clash_url = response.text.strip()
                 result["clash_url"] = clash_url
