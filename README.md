@@ -4,6 +4,8 @@ https://cf.252035.xyz/
 ## 支持WebUI操作
 ![](https://raw.githubusercontent.com/fish2018/lib/refs/heads/main/%E6%95%99%E7%A8%8B/clashForge.gif)  
 
+https://github.com/user-attachments/assets/a1a377a2-e93e-461d-9915-7f7f4dd6ff36
+
 ## 功能
 - 将`hysteria2://|hy2://`、`trojan://`、`ss://`、`vless://`、`vmess://`协议链接转换为clash可用的代理节点配置
 - 支持从`input`目录下的所有txt文档中按行读取代理链接(每条代理链接占一行)
