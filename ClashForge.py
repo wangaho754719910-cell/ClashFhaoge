@@ -1932,9 +1932,12 @@ class ClashAPI:
         self.base_url = None  # 将在连接检查时设置
         self.headers = {
             "Authorization": f"Bearer {secret}" if secret else "",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            'Accept-Charset': 'utf-8',
+            'Accept': 'text/html,application/x-yaml,*/*',
+            'User-Agent': 'Clash Verge/1.7.7'
         }
-        self.client = httpx.AsyncClient(timeout=1)
+        self.client = httpx.AsyncClient(timeout=TIMEOUT)
         self.semaphore = Semaphore(MAX_CONCURRENT_TESTS)
         self._test_results_cache: Dict[str, ProxyTestResult] = {}
 
@@ -1997,7 +2000,7 @@ class ClashAPI:
         async with self.semaphore:
             try:
                 response = await self.client.get(
-                    f"{self.base_url}/proxies/{proxy_name}/delay",
+                    f"{self.base_url}/proxies/{urllib.parse.quote(proxy_name, safe='')}/delay",
                     headers=self.headers,
                     params={"url": TEST_URL, "timeout": int(TIMEOUT * 1000)}
                 )
@@ -2462,7 +2465,7 @@ def test_proxy_speed(proxy_name):
 
 def upload_and_generate_urls(file_path=CONFIG_FILE):
     # api_url = "https://catbox.moe/user/api.php"
-    api_url = "https://f2.252035.xyz/user/api.php"
+    api_url = "https://f.252035.xyz/user/api.php"
     result = {"clash_url": None, "singbox_url": None}
 
     try:
@@ -2475,7 +2478,8 @@ def upload_and_generate_urls(file_path=CONFIG_FILE):
 
         # Upload Clash config
         with open(file_path, 'rb') as file:
-            response = requests.post(api_url, data={"reqtype": "fileupload"}, files={"fileToUpload": file})
+            response = requests.post(api_url, data={"reqtype": "fileupload"}, files={"fileToUpload": file}, timeout=15, verify=False)
+            print(11111,response.text)
             if response.status_code == 200:
                 clash_url = response.text.strip()
                 result["clash_url"] = clash_url
@@ -2493,6 +2497,40 @@ def upload_and_generate_urls(file_path=CONFIG_FILE):
 
     except Exception as e:
         print(f"发生错误：{e}")
+
+    # 记录成功生成的链接到subs.json
+    subs_file = "subs.json"
+    if result["clash_url"] or result["singbox_url"]:
+        try:
+            # 初始化默认结构
+            subs_data = {"clash": [], "singbox": []}
+            
+            # 尝试读取现有文件
+            if os.path.exists(subs_file):
+                try:
+                    with open(subs_file, 'r', encoding='utf-8') as f:
+                        subs_data = json.load(f)
+                except:
+                    pass  # 如果文件损坏，使用默认结构
+            
+            # 添加新链接到记录中(避免重复)
+            if result["clash_url"] and result["clash_url"] not in subs_data.get("clash", []):
+                if "clash" not in subs_data:
+                    subs_data["clash"] = []
+                subs_data["clash"].append(result["clash_url"])
+            
+            if result["singbox_url"] and result["singbox_url"] not in subs_data.get("singbox", []):
+                if "singbox" not in subs_data:
+                    subs_data["singbox"] = []
+                subs_data["singbox"].append(result["singbox_url"])
+            
+            # 保存更新后的数据
+            with open(subs_file, 'w', encoding='utf-8') as f:
+                json.dump(subs_data, f, ensure_ascii=False, indent=2)
+            
+            print(f"已将订阅链接记录到 {subs_file}")
+        except Exception as e:
+            print(f"记录订阅链接失败: {str(e)}")
 
     return result
 
@@ -2594,5 +2632,4 @@ if __name__ == '__main__':
         "https://www.freeclashnode.com/uploads/{Y}/{m}/1-{Ymd}.yaml",
         "https://zrf.zrf.me/zrf"
     ]
-    links = ['https://c7dabe95.proxy-978.pages.dev/767b6340-96dc-4aa0-8013-a8af7513d920?clash']
     work(links, check=True, only_check=False, allowed_types=["ss","hysteria2","hy2","vless","vmess","trojan"])
