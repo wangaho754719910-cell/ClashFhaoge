@@ -2465,7 +2465,7 @@ def test_proxy_speed(proxy_name):
 
 def upload_and_generate_urls(file_path=CONFIG_FILE):
     # api_url = "https://catbox.moe/user/api.php"
-    api_url = "https://f.252035.xyz/user/api.php"
+    api_url = "https://f2.252035.xyz/user/api.php"
     result = {"clash_url": None, "singbox_url": None}
 
     try:
