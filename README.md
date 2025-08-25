@@ -1,4 +1,4 @@
-## 在线演示
+npm install## 在线演示
 http://cf.252035.xyz/
 
 ## 支持WebUI操作
